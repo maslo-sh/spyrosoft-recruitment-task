@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"sync"
 	"time"
 )
 
@@ -30,6 +33,9 @@ const (
 )
 
 func main() {
+	initLogger()
+	var mu sync.Mutex
+
 	req, err := http.NewRequest("GET", API_URL, nil)
 
 	if err != nil {
@@ -48,10 +54,9 @@ func main() {
 
 	elapsed := time.Since(startTime)
 
-	log.Printf("TIME OF REQUEST: %d", elapsed.Milliseconds())
-
 	defer resp.Body.Close()
 
+	statusCode := resp.StatusCode
 	contentType := resp.Header.Get("Content-Type")
 
 	log.Printf("RESPONSE CONTENT TYPE: %s", contentType)
@@ -72,9 +77,7 @@ func main() {
 		log.Fatalf("Failed to read compressed body content: %e", err)
 	}
 
-	if !json.Valid(content) {
-		log.Fatalf("Provided payload is not valid JSON format")
-	}
+	isJsonValid := json.Valid(content)
 
 	var summary ExchangeRatesSummary
 
@@ -82,6 +85,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to unmarshall request content: %e", err)
 	}
+
+	mu.Lock()
+	log.Printf("REQUEST TIME: %d ms; STATUS CODE: %d; CONTENT TYPE: %s; VALID JSON SYNTAX: %t", elapsed.Milliseconds(), statusCode, contentType, isJsonValid)
+	mu.Unlock()
 }
 
 func addHeaders(req *http.Request) {
@@ -94,4 +101,17 @@ func addHeaders(req *http.Request) {
 	req.Header.Set("Sec-GPC", "1")
 	req.Header.Set("Accept-Encoding", "deflate, gzip")
 	req.Header.Set("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
+}
+
+func initLogger() {
+	log.SetFlags(0)
+	file, err := os.OpenFile("log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		log.Fatalf("Failed to create logger: %e", err)
+	}
+
+	log.SetPrefix(time.Now().Format("[01-02-2006 15:04:05] "))
+
+	multi := io.MultiWriter(file, os.Stdout)
+	log.SetOutput(multi)
 }
