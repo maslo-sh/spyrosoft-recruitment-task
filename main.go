@@ -40,7 +40,12 @@ func main() {
 
 	elapsed := time.Since(startTime)
 
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			log.Fatalf("Failed to close response body: %e", err)
+		}
+	}()
 
 	statusCode := resp.StatusCode
 	contentType := resp.Header.Get("Content-Type")
