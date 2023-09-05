@@ -77,14 +77,12 @@ func prepareHttpRequest() (*http.Request, error) {
 
 func addHeaders(req *http.Request) {
 	req.Header.Set("Host", "api.nbp.pl")
-	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Cache-Control", "max-age=0")
-	req.Header.Set("Upgrade-Insecure-Requests", "1")
 	req.Header.Set("User-Agent", "Golang Program")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Sec-GPC", "1")
-	req.Header.Set("Accept-Encoding", "deflate, gzip")
 	req.Header.Set("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
+
+	//gzip encoding results in a much smaller response body
+	req.Header.Set("Accept-Encoding", "deflate, gzip")
 }
 
 func decompressGzippedResponse(response *http.Response) ([]byte, error) {
@@ -111,7 +109,7 @@ func initLogger() {
 	log.SetFlags(0)
 	file, err := os.OpenFile("log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		log.Fatalf("Failed to create logger: %e", err)
+		log.Fatalf("Failed to create log file: %e", err)
 	}
 
 	log.SetPrefix(time.Now().Format("[01-02-2006 15:04:05] "))
