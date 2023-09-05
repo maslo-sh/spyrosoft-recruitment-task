@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 )
 
 type ExchangeRate struct {
@@ -17,10 +17,10 @@ type ExchangeRate struct {
 }
 
 type ExchangeRatesSummary struct {
-	Table    string          `json:"table"`
-	Currency string          `json:"currency"`
-	Code     string          `json:"code"`
-	Rates    []*ExchangeRate `json:"rates"`
+	Table    string         `json:"table"`
+	Currency string         `json:"currency"`
+	Code     string         `json:"code"`
+	Rates    []ExchangeRate `json:"rates"`
 }
 
 const (
@@ -34,24 +34,21 @@ func main() {
 
 	if err != nil {
 		log.Fatalf("Failed to prepare HTTP GET request: %e", err)
-		return
 	}
 
-	req.Header.Set("Host", "api.nbp.pl")
-	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Cache-Control", "max-age=0")
-	req.Header.Set("Upgrade-Insecure-Requests", "1")
-	req.Header.Set("User-Agent", "Golang Program")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Sec-GPC", "1")
-	req.Header.Set("Accept-Encoding", "deflate, gzip")
-	req.Header.Set("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
+	addHeaders(req)
 
 	client := &http.Client{}
+
+	startTime := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalf("Failed to perform GET request: %e", err)
 	}
+
+	elapsed := time.Since(startTime)
+
+	log.Printf("TIME OF REQUEST: %d", elapsed.Milliseconds())
 
 	defer resp.Body.Close()
 
@@ -71,7 +68,9 @@ func main() {
 		log.Fatalf("Failed to read compressed body content: %e", err)
 	}
 
-	fmt.Println(string(content))
+	if !json.Valid(content) {
+		log.Fatalf("Provided payload is not valid JSON format")
+	}
 
 	var summary ExchangeRatesSummary
 
@@ -79,4 +78,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to unmarshall request content: %e", err)
 	}
+}
+
+func addHeaders(req *http.Request) {
+	req.Header.Set("Host", "api.nbp.pl")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Cache-Control", "max-age=0")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+	req.Header.Set("User-Agent", "Golang Program")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Sec-GPC", "1")
+	req.Header.Set("Accept-Encoding", "deflate, gzip")
+	req.Header.Set("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
 }
