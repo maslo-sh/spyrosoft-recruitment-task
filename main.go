@@ -4,27 +4,16 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"spyrosoft_recruitment/types"
 	"sync"
 	"time"
 )
-
-type ExchangeRate struct {
-	No            string  `json:"no"`
-	EffectiveDate string  `json:"effectiveDate"`
-	Mid           float64 `json:"mid"`
-}
-
-type ExchangeRatesSummary struct {
-	Table    string         `json:"table"`
-	Currency string         `json:"currency"`
-	Code     string         `json:"code"`
-	Rates    []ExchangeRate `json:"rates"`
-}
 
 const (
 	API_URL        = "http://api.nbp.pl/api/exchangerates/rates/a/eur/last/100/"
@@ -36,13 +25,10 @@ func main() {
 	initLogger()
 	var mu sync.Mutex
 
-	req, err := http.NewRequest("GET", API_URL, nil)
-
+	req, err := prepareHttpRequest()
 	if err != nil {
-		log.Fatalf("Failed to prepare HTTP GET request: %e", err)
+		log.Fatalf("Failed to prepare GET request: %e", err)
 	}
-
-	addHeaders(req)
 
 	client := &http.Client{}
 
@@ -59,25 +45,14 @@ func main() {
 	statusCode := resp.StatusCode
 	contentType := resp.Header.Get("Content-Type")
 
-	gzipBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalf("Failed to read compressed body content: %e", err)
-	}
-
-	bytesReader := bytes.NewReader(gzipBytes)
-	gzipReader, err := gzip.NewReader(bytesReader)
-	if err != nil {
-		log.Fatalf("Failed to create gzip reader: %e", err)
-	}
-
-	content, err := ioutil.ReadAll(gzipReader)
+	content, err := decompressGzippedResponse(resp)
 	if err != nil {
 		log.Fatalf("Failed to read compressed body content: %e", err)
 	}
 
 	isJsonValid := json.Valid(content)
 
-	var summary ExchangeRatesSummary
+	var summary types.ExchangeRatesSummary
 
 	err = json.Unmarshal(content, &summary)
 	if err != nil {
@@ -87,6 +62,17 @@ func main() {
 	mu.Lock()
 	log.Printf("REQUEST TIME: %d ms; STATUS CODE: %d; CONTENT TYPE: %s; VALID JSON SYNTAX: %t", elapsed.Milliseconds(), statusCode, contentType, isJsonValid)
 	mu.Unlock()
+}
+
+func prepareHttpRequest() (*http.Request, error) {
+	req, err := http.NewRequest("GET", API_URL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare HTTP GET request: %e", err)
+	}
+
+	addHeaders(req)
+
+	return req, nil
 }
 
 func addHeaders(req *http.Request) {
@@ -99,6 +85,26 @@ func addHeaders(req *http.Request) {
 	req.Header.Set("Sec-GPC", "1")
 	req.Header.Set("Accept-Encoding", "deflate, gzip")
 	req.Header.Set("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
+}
+
+func decompressGzippedResponse(response *http.Response) ([]byte, error) {
+	gzipBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read compressed body content: %e", err)
+	}
+
+	bytesReader := bytes.NewReader(gzipBytes)
+	gzipReader, err := gzip.NewReader(bytesReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gzip reader: %e", err)
+	}
+
+	content, err := ioutil.ReadAll(gzipReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read compressed body content: %e", err)
+	}
+
+	return content, nil
 }
 
 func initLogger() {
