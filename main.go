@@ -59,8 +59,6 @@ func main() {
 	statusCode := resp.StatusCode
 	contentType := resp.Header.Get("Content-Type")
 
-	log.Printf("RESPONSE CONTENT TYPE: %s", contentType)
-
 	gzipBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatalf("Failed to read compressed body content: %e", err)
