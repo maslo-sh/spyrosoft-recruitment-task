@@ -20,14 +20,19 @@ const (
 	FetchesAmount = 10
 )
 
+type IntervalHandler struct {
+	wg     sync.WaitGroup
+	waitCh chan int
+}
+
 func main() {
 	logger.InitLogger()
 	var mu sync.Mutex
 
 	for {
-		var wg sync.WaitGroup
-		waitCh := make(chan int)
-		wg.Add(FetchesAmount)
+		intervalHandler := &IntervalHandler{sync.WaitGroup{}, make(chan int)}
+
+		intervalHandler.wg.Add(FetchesAmount)
 
 		//locking mutex to avoid mixing logs from different goroutines
 		mu.Lock()
@@ -36,16 +41,20 @@ func main() {
 
 		start := time.Now()
 		for i := 0; i < FetchesAmount; i++ {
-			go apiQueryWorker(i, &mu, &wg)
+			go apiQueryWorker(i, &mu, &intervalHandler.wg)
 		}
 
 		go func() {
-			wg.Wait()
-			close(waitCh)
+			// wait until all requests are processed
+			intervalHandler.wg.Wait()
+
+			//notify end of requests processing
+			close(intervalHandler.waitCh)
 		}()
 
 		select {
-		case <-waitCh:
+		case <-intervalHandler.waitCh:
+			// sleep until interval makes cycle
 			elapsed := time.Since(start)
 			time.Sleep(FetchInterval*time.Second - elapsed)
 		case <-time.After(FetchInterval * time.Second):
