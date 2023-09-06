@@ -8,8 +8,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"spyrosoft_recruitment/logger"
-	"spyrosoft_recruitment/types"
+	"spyrosoft-recruitment-task/logger"
+	"spyrosoft-recruitment-task/types"
 	"sync"
 	"time"
 )
@@ -94,7 +94,7 @@ func apiQueryWorker(index int, mu *sync.Mutex, wg *sync.WaitGroup) {
 
 	//locking mutex to avoid mixing logs from different goroutines
 	mu.Lock()
-	printReqInfo(index, elapsed, statusCode, contentType, isJsonValid)
+	logger.PrintReqInfo(index, elapsed, statusCode, contentType, isJsonValid)
 	mu.Unlock()
 }
 
@@ -137,11 +137,4 @@ func decompressGzippedResponse(response *http.Response) ([]byte, error) {
 	}
 
 	return content, nil
-}
-
-func printReqInfo(index int, elapsed time.Duration, statusCode int, contentType string, isJsonValid bool) {
-	log.Printf("<worker-%d> Request Time: %d ms", index, elapsed.Milliseconds())
-	log.Printf("<worker-%d> HTTP Status Code: %d", index, statusCode)
-	log.Printf("<worker-%d> HTTP Content Type: %s", index, contentType)
-	log.Printf("<worker-%d> Is Syntax Valid JSON: %t", index, isJsonValid)
 }
