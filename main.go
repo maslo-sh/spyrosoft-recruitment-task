@@ -8,8 +8,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"spyrosoft-recruitment-task/base"
 	"spyrosoft-recruitment-task/logger"
-	"spyrosoft-recruitment-task/types"
 	"sync"
 	"time"
 )
@@ -29,6 +29,11 @@ func main() {
 		waitCh := make(chan int)
 		wg.Add(FetchesAmount)
 
+		//locking mutex to avoid mixing logs from different goroutines
+		mu.Lock()
+		log.Println(" ======== BEGIN REQUESTS POOL ======== ")
+		mu.Unlock()
+
 		start := time.Now()
 		for i := 0; i < FetchesAmount; i++ {
 			go apiQueryWorker(i, &mu, &wg)
@@ -46,6 +51,10 @@ func main() {
 		case <-time.After(FetchInterval * time.Second):
 			log.Println("Timeout, performing next requests group...")
 		}
+
+		mu.Lock()
+		log.Println(" ======== END OF REQUESTS POOL ======== ")
+		mu.Unlock()
 	}
 
 }
@@ -85,7 +94,7 @@ func apiQueryWorker(index int, mu *sync.Mutex, wg *sync.WaitGroup) {
 
 	isJsonValid := json.Valid(content)
 
-	var summary types.ExchangeRatesSummary
+	var summary base.ExchangeRatesSummary
 
 	err = json.Unmarshal(content, &summary)
 	if err != nil {
