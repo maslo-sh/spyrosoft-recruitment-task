@@ -20,3 +20,5 @@ log.txt
 
 # Go workspace file
 go.work
+
+.idea
