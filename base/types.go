@@ -3,9 +3,9 @@ package base
 import "spyrosoft-recruitment-task/marshal"
 
 type ExchangeRate struct {
-	No            string             `json:"no"`
-	EffectiveDate marshal.CustomTime `json:"effectiveDate"`
-	Mid           float64            `json:"mid"`
+	No            string              `json:"no"`
+	EffectiveDate *marshal.CustomTime `json:"effectiveDate"`
+	Mid           float64             `json:"mid"`
 }
 
 type ExchangeRatesSummary struct {

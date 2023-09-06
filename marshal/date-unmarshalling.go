@@ -9,7 +9,7 @@ type CustomTime struct {
 	time.Time
 }
 
-func (ct CustomTime) UnmarshalJSON(b []byte) (err error) {
+func (ct *CustomTime) UnmarshalJSON(b []byte) (err error) {
 	s := strings.Trim(string(b), "\"")
 	if s == "null" {
 		ct.Time = time.Time{}

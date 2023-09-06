@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -20,9 +21,11 @@ func InitLogger() {
 	log.SetOutput(multi)
 }
 
-func PrintReqInfo(index int, elapsed time.Duration, statusCode int, contentType string, isJsonValid bool) {
+func PrintReqInfo(index int, elapsed time.Duration, statusCode int, contentType string, isJsonValid bool, rateOutOfScope []string) {
 	log.Printf("<worker-%d> Request Time: %d ms", index, elapsed.Milliseconds())
 	log.Printf("<worker-%d> HTTP Status Code: %d", index, statusCode)
 	log.Printf("<worker-%d> HTTP Content Type: %s", index, contentType)
 	log.Printf("<worker-%d> Is Syntax Valid JSON: %t", index, isJsonValid)
+	dates := strings.Join(rateOutOfScope, "; ")
+	log.Printf("<worker-%d> Dates with Mid Out Of Scope 4.50 - 4.70: %s", index, dates)
 }

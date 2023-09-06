@@ -64,6 +64,7 @@ func apiQueryWorker(index int, mu *sync.Mutex, wg *sync.WaitGroup) {
 	req, err := prepareHttpRequest()
 	if err != nil {
 		log.Fatalf("Failed to prepare GET request: %s", err)
+		return
 	}
 
 	client := &http.Client{}
@@ -72,6 +73,7 @@ func apiQueryWorker(index int, mu *sync.Mutex, wg *sync.WaitGroup) {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalf("Failed to perform GET request: %s", err)
+		return
 	}
 
 	elapsed := time.Since(startTime)
@@ -80,6 +82,7 @@ func apiQueryWorker(index int, mu *sync.Mutex, wg *sync.WaitGroup) {
 		err := resp.Body.Close()
 		if err != nil {
 			log.Fatalf("Failed to close response body: %s", err)
+			return
 		}
 	}()
 
@@ -90,6 +93,7 @@ func apiQueryWorker(index int, mu *sync.Mutex, wg *sync.WaitGroup) {
 	content, err := decompressGzippedResponse(resp)
 	if err != nil {
 		log.Fatalf("Failed to read compressed body content: %s", err)
+		return
 	}
 
 	isJsonValid := json.Valid(content)
@@ -99,11 +103,22 @@ func apiQueryWorker(index int, mu *sync.Mutex, wg *sync.WaitGroup) {
 	err = json.Unmarshal(content, &summary)
 	if err != nil {
 		log.Fatalf("Failed to unmarshall request content: %s", err)
+		return
+	}
+
+	var rateOutOfScope []string
+
+	for _, item := range summary.Rates {
+		if item.Mid < 4.5 || item.Mid > 4.7 {
+			day, month, year := item.EffectiveDate.Day(), item.EffectiveDate.Month(), item.EffectiveDate.Year()
+			date := fmt.Sprintf("%d/%d/%d", day, month, year)
+			rateOutOfScope = append(rateOutOfScope, date)
+		}
 	}
 
 	//locking mutex to avoid mixing logs from different goroutines
 	mu.Lock()
-	logger.PrintReqInfo(index, elapsed, statusCode, contentType, isJsonValid)
+	logger.PrintReqInfo(index, elapsed, statusCode, contentType, isJsonValid, rateOutOfScope)
 	mu.Unlock()
 }
 
@@ -121,7 +136,6 @@ func prepareHttpRequest() (*http.Request, error) {
 func addHeaders(req *http.Request) {
 	req.Header.Set("Host", "api.nbp.pl")
 	req.Header.Set("User-Agent", "Golang Program")
-	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
 
 	//gzip encoding results in a much smaller response body
